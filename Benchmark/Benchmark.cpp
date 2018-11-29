@@ -18,20 +18,24 @@ using namespace LIndexUnwarpped;
 
 int test_vector()
 {
+
+  GC *gc = new GC();
+  gc->start();
   random_device device{};
   mt19937 engine{device()};
   uniform_int_distribution u_rand(0, (int)(Parameters::n_data - 1));
   ZipfianDistribution<unsigned int> zipf_distribution(Parameters::n_groups, engine, 1.f);
   unsigned int *rawdata  = zipf_distribution.get_rawdata(Parameters::n_data);
-  LIndex lid_test, *hybrid_test;
+  LIndex lid_test(gc), *hybrid_test;
   vector<RID> vector_test;
   _Size32_t lineage_capacity = 2;
   _Size32_t lineage_size = 0;
   RID* lineage_ids = 0;
   lid_init(lineage_ids, lineage_capacity);
 
-  auto time = chrono::steady_clock::now(); 
+
   RID* array_test = new RID[Parameters::n_data];
+  auto time = chrono::steady_clock::now();  
   memcpy(array_test, rawdata, 4 * Parameters::n_data);
   printf("time array: %lf ms\n",
 	chrono::duration<double, milli>(chrono::steady_clock::now() - time).count());
@@ -42,18 +46,18 @@ int test_vector()
   
   for (int i = 0; i < Parameters::n_data; ++i)
 	//lid_test.emplace_back(rawdata[i]);
-	lid_emplace_back(lineage_ids, lineage_capacity, lineage_size, rawdata[i]);
+	lid_emplace_back(lineage_ids, lineage_capacity, lineage_size, rawdata[i], gc);
   printf("time lid: %lf ms , space lid: %u\n",
 	chrono::duration<double, milli>(chrono::steady_clock::now() - time).count(),
 	sizeof(RID) * lineage_capacity);
   delete[] lineage_ids;
 
-  hybrid_test = new LIndex();
+  hybrid_test = new LIndex(gc);
   time = chrono::steady_clock::now();
   for (int i = 0; i < Parameters::n_data; ++i)
 	//lid_test.emplace_back(rawdata[i]);
 	//lid_emplace_back(hybrid_test, rawdata[i]);
-	lid_emplace_back(((RID**)hybrid_test)[1], ((_Size32_t*)hybrid_test)[0], ((_Size32_t*)hybrid_test)[1], rawdata[i]);
+	lid_emplace_back(((RID**)hybrid_test)[1], ((_Size32_t*)hybrid_test)[0], ((_Size32_t*)hybrid_test)[1], rawdata[i], gc);
 
   printf("time lid_hybrid: %lf ms , space lid_hybrid: %u\n",
 	chrono::duration<double, milli>(chrono::steady_clock::now() - time).count(),
@@ -65,7 +69,7 @@ int test_vector()
   for (int i = 0; i < Parameters::n_data; ++i)
 	//lid_test.emplace_back(rawdata[i]);
 	//lid_emplace_back(hybrid_test, rawdata[i]);
-	lid_emplace_back(hybrid_test, rawdata[i]);
+	lid_emplace_back(hybrid_test, rawdata[i], gc);
 
   printf("time lid_hybrid2: %lf ms , space lid_hybrid2: %u\n",
 	chrono::duration<double, milli>(chrono::steady_clock::now() - time).count(),
@@ -98,6 +102,8 @@ int test_vector()
 int main() {
   test_vector();
   return 0;
+  GC *gc = new GC();
+  gc->start();
   random_device device{};
   mt19937 engine{ device() };
   ZipfianDistribution<unsigned int> zipf_distribution(Parameters::n_groups, engine, 1.f);
@@ -121,7 +127,7 @@ int main() {
   for (auto& lidx : lineage)
   {
 	space_consumption += lidx.second->capacity();
-	//delete[] lidx.second;
+	delete lidx.second;
   }
   printf(" space vector: %u Bytes\n", space_consumption * sizeof(RID));
 
@@ -145,7 +151,8 @@ int main() {
   for (auto& lidx : lineage_r)
   {
 	space_consumption += lidx.second->getSizeInBytes();
-	//delete[] lidx.second;
+	delete lidx.second;
+	lidx.second = 0;
   }
   printf(" space roaring: %u Bytes\n", space_consumption * sizeof(RID));
   lineage_r.clear();

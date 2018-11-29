@@ -190,12 +190,14 @@
   <ItemGroup>
     <ClCompile Include="Benchmark.cpp" />
     <ClCompile Include="FileIO.cpp" />
+    <ClCompile Include="gc.cpp" />
     <ClCompile Include="LIndex.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\Benchmark.h" />
     <ClInclude Include="..\include\distribution.hpp" />
     <ClInclude Include="..\include\FileIO.h" />
+    <ClInclude Include="..\include\gc.h" />
     <ClInclude Include="..\include\LIndex.h" />
     <ClInclude Include="..\include\Parameters.h" />
     <ClInclude Include="..\include\tools.hpp" />

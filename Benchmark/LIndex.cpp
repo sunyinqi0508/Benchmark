@@ -1,11 +1,12 @@
 #include "LIndex.h"
+#include "gc.h"
 #include <future>
 #include <thread>
-LIndex::LIndex() : _capacity(LIndex::initial_size), _size(0){
+LIndex::LIndex(GC *gc) : _capacity(LIndex::initial_size), _size(0), garbage_collector(gc){
   container = (RID *)malloc(sizeof(RID) * _capacity);
 }
 
-LIndex::LIndex(RID r) : _size(1) {
+LIndex::LIndex(RID r, GC *gc) : _size(1), garbage_collector(gc) {
   if (_capacity < 2)
 	_capacity = 2;
   container = (RID *)malloc(sizeof(RID) * _capacity);
@@ -31,14 +32,17 @@ void LIndex::emplace_back(const RID r){
 	  //throw std::length_error("LIndex too long");
 	const _Size32_t n_size = _size + 1;
 	const _Size32_t n_capacity = //_capacity > max_capacity - (_capacity >> 1) ? n_size:
-	  (n_size > (_capacity + (_capacity >> 1))? n_size : (_capacity + (_capacity >> 1)));
+	  ///*initial capacity > 2 required*/(n_size > (_capacity + (_capacity >> 1))? n_size :
+	  (_capacity + (_capacity >> 1));
   
 	RID *n_container = (RID *)malloc(sizeof(RID) * n_capacity);
 	memcpy(n_container, container, sizeof(RID) * _size);
 	n_container[_size] = r;
 
-	if (_capacity && container)
-	  delete[] container;
+	if (garbage_collector)
+	  garbage_collector->feed(container);
+	else if (_capacity && container)
+	  free(container);
 
 	container = n_container;
 	_capacity = n_capacity;
@@ -65,7 +69,7 @@ void LIndex::reserve(const _Size32_t _capacity)
 	  if(_size > 0)
 		memcpy(_container, container, _size * sizeof(RID));
 	  
-	  delete[] container;
+	  free(container);
 	}
 	container = _container;
 	this->_capacity = _capacity;
@@ -77,13 +81,11 @@ const RID * LIndex::data() const{
 }
 
 __forceinline void LIndexUnwarpped::lid_emplace_back(
-  RID *& container, _Size32_t & _capacity, _Size32_t & _size, const RID r)
+  RID *& container, _Size32_t & _capacity, _Size32_t & _size, const RID r, GC *gc)
 {
   if (_size != _capacity)
 	container[_size++] = r;
   else {
-	//if (_size == max_capacity)
-	  //throw std::length_error("LIndex too long");
 	const _Size32_t n_size = _size + 1;
 	const _Size32_t n_capacity = //_capacity > max_capacity - (_capacity >> 1) ? n_size:
 	  //n_size > (_capacity + (_capacity >> 1)) ? n_size :
@@ -92,17 +94,19 @@ __forceinline void LIndexUnwarpped::lid_emplace_back(
 	RID *n_container = (RID *)malloc(sizeof(RID) * n_capacity);
 	memcpy(n_container, container, sizeof(RID) * _size);
 	n_container[_size] = r;
-
-	delete[] container;
+	if (gc)
+	  gc->feed(container);
+	else
+	  free(container);
 	container = n_container;
 	_capacity = n_capacity;
 	_size = n_size;
   }
 }
 
-void LIndexUnwarpped::lid_emplace_back(LIndex * lindex, const RID r)
+__forceinline void LIndexUnwarpped::lid_emplace_back(LIndex * lindex, const RID r,  GC *gc)
 {
-  lid_emplace_back(lindex->container, lindex->_capacity, lindex->_size, r);
+  lid_emplace_back(lindex->container, lindex->_capacity, lindex->_size, r, gc);
 }
 
 __forceinline void LIndexUnwarpped::lid_init(
@@ -115,7 +119,7 @@ __forceinline void LIndexUnwarpped::lid_deinit(RID *& container)
 { 
   if (container)
   {
-	delete[] container;
+	free(container);
 	container = 0;
   }
 }
