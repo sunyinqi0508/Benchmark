@@ -1,8 +1,0 @@
-﻿  Benchmark.cpp
-c:\users\sunyi\source\repos\consoleapplication4\include\tools.hpp(25): warning C4005: '_CRT_SECURE_NO_WARNINGS': macro redefinition
-  c:\users\sunyi\source\repos\consoleapplication4\consoleapplication4\benchmark.cpp: note: see previous definition of '_CRT_SECURE_NO_WARNINGS'
-c:\users\sunyi\source\repos\consoleapplication4\include\tools.hpp(61): warning C4477: 'sprintf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'time_t'
-  c:\users\sunyi\source\repos\consoleapplication4\include\tools.hpp(61): note: consider using '%llx' in the format string
-  c:\users\sunyi\source\repos\consoleapplication4\include\tools.hpp(61): note: consider using '%I64x' in the format string
-c:\users\sunyi\source\repos\consoleapplication4\consoleapplication4\benchmark.cpp(40): warning C4477: 'printf' : format string '%x' requires an argument of type 'unsigned int', but variadic argument 1 has type 'unsigned int *'
-  ConsoleApplication4.vcxproj -> C:\Users\sunyi\source\repos\ConsoleApplication4\Debug\ConsoleApplication4.exe
