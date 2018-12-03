@@ -27,7 +27,7 @@ private:
 
 public:
 
-  void reinit(unsigned int n_groups, std::mt19937 re, double ipf_constant = 1.0){
+  void reinit(unsigned int n_groups, std::mt19937 re, double zipf_constant = 1.0){
 	assert(n_groups > 1);
 	n_groups = n_groups;
 	random_engine = re;

@@ -16,6 +16,7 @@
 #include "EWAH/boolarray.h"
 #include "FastPFor/fastpfor.h"
 #include "FastPFor/bitpacking.h"
+
 using namespace std;
 using namespace LIndexUnwarpped;
 
@@ -113,8 +114,8 @@ int test_vector()
 
 
 int main() {
-  test_vector();
-  return 0;
+  //test_vector();
+  //return 0;
 	int ii = 0;
 
   //return 0;
@@ -202,6 +203,7 @@ int main() {
   }
   printf("total space ewah: %u Bytes\n", space_consumption );
   lineage_ewah.clear();
+
   return 0;
 
 }

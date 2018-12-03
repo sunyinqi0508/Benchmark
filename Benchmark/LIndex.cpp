@@ -44,7 +44,7 @@ void LIndex::emplace_back(const RID r){
 	if (garbage_collector)
 		garbage_collector->feed(container);
 	else if (_capacity && container)
-		;// free(container);
+		free(container);
 
 	container = n_container;
 	_capacity = n_capacity;
@@ -100,7 +100,7 @@ __forceinline void LIndexUnwarpped::lid_emplace_back(
 	if (gc)
 		gc->feed(container);
 	else
-		;// free(container);
+		free(container);
 	container = n_container;
 	_capacity = n_capacity;
 	_size = n_size;
