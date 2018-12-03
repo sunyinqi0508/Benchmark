@@ -29,6 +29,7 @@ private:
   GC *garbage_collector = 0;
 public:
   friend void LIndexUnwarpped::lid_emplace_back(LIndex* , const RID, GC*);
+  int _alloc_count = 0;
 
   LIndex(GC *gc = 0);
   LIndex(RID r, GC *gc = 0);

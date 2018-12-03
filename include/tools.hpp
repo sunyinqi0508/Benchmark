@@ -61,5 +61,11 @@ namespace Tools {
 	sprintf(str_time, "%x", now);
 	return str_time;
   }
+
+  template <class T>
+  inline void do_not_optimize_away(T&& datum) {
+	 // __asm ("" : "+r" (datum));
+  }
+
 }
 #endif

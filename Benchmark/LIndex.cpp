@@ -28,6 +28,8 @@ void LIndex::emplace_back(const RID r){
   if (_size != _capacity) 
 	container[_size++] = r;
   else {
+	  _alloc_count++;
+
 	//if (_size == max_capacity)
 	  //throw std::length_error("LIndex too long");
 	const _Size32_t n_size = _size + 1;
@@ -40,9 +42,9 @@ void LIndex::emplace_back(const RID r){
 	n_container[_size] = r;
 
 	if (garbage_collector)
-	  garbage_collector->feed(container);
+		garbage_collector->feed(container);
 	else if (_capacity && container)
-	  free(container);
+		;// free(container);
 
 	container = n_container;
 	_capacity = n_capacity;
@@ -83,6 +85,7 @@ const RID * LIndex::data() const{
 __forceinline void LIndexUnwarpped::lid_emplace_back(
   RID *& container, _Size32_t & _capacity, _Size32_t & _size, const RID r, GC *gc)
 {
+	
   if (_size != _capacity)
 	container[_size++] = r;
   else {
@@ -95,9 +98,9 @@ __forceinline void LIndexUnwarpped::lid_emplace_back(
 	memcpy(n_container, container, sizeof(RID) * _size);
 	n_container[_size] = r;
 	if (gc)
-	  gc->feed(container);
+		gc->feed(container);
 	else
-	  free(container);
+		;// free(container);
 	container = n_container;
 	_capacity = n_capacity;
 	_size = n_size;
