@@ -16,9 +16,70 @@
 #include "EWAH/boolarray.h"
 #include "FastPFor/fastpfor.h"
 #include "FastPFor/bitpacking.h"
+#include "bm.h"
 
 using namespace std;
 using namespace LIndexUnwarpped;
+
+
+
+template<class _Compressor_t>
+Benchmark<_Compressor_t>::Benchmark(const char* method_name, unsigned int* rawdata,
+	void(*emplace_back)(_Compressor_t&, unsigned int& i),
+	int(*get_size)(_Compressor_t&),
+	void* (*init)(GC*),
+	GC *gc
+	) :
+	method_name(method_name), rawdata(rawdata), emplace_back(emplace_back), get_size(get_size), 
+	init(init), gc(gc)
+{}
+
+template<class _Compressor_t>
+inline void Benchmark<_Compressor_t>::operator()()
+{
+	unordered_map<int, _Compressor_t *>lineage;
+	chrono::time_point<chrono::steady_clock > time = chrono::steady_clock::now();
+	for (unsigned int i = 0; i < Parameters::n_data; ++i)
+	{
+		auto l = lineage.find(rawdata[i]);
+		if (l == lineage.end())
+		{
+			auto back = lineage.insert(std::make_pair(
+				rawdata[i], init?(_Compressor_t*)init(gc) : new _Compressor_t()));
+			emplace_back(*(back.first)->second, i);
+		}
+		else
+			emplace_back((*l->second), i);
+	}
+	size_t space_consumption = 0;
+
+
+	printf("time %s: %lf ms\n Group space usage:",
+		method_name, chrono::duration<double, milli>(chrono::steady_clock::now() - time).count());
+	int ii = 0;
+	for (auto& lidx : lineage)
+	{
+		space_consumption += get_size(*lidx.second);
+		printf("Group %d, size in Bytes %d \n", ii++, get_size(*lidx.second));
+
+		delete lidx.second;
+	}
+	printf("total space %s : %u Bytes\n", method_name, space_consumption);
+
+	lineage.clear();
+}
+
+template<class _Compressor_t>
+void Benchmark<_Compressor_t>::bench(
+	const char * method_name, unsigned int * rawdata,
+	void(*emplace_back)(_Compressor_t &, unsigned int &i),
+	int(*get_size)(_Compressor_t &), void *(*init)(GC*), GC* gc)
+{
+	Benchmark b(method_name, rawdata, emplace_back, get_size, init , gc);
+	b();
+}
+
+
 
 int test_vector()
 {
@@ -36,9 +97,11 @@ int test_vector()
   _Size32_t lineage_size = 0;
   RID* lineage_ids = 0;
   lid_init(lineage_ids, lineage_capacity);
-
-
   RID* array_test = new RID[Parameters::n_data];
+ 
+
+
+
   auto time = chrono::steady_clock::now();  
   memcpy(array_test, rawdata, 4 * Parameters::n_data);
   printf("time array: %lf ms\n",
@@ -109,14 +172,13 @@ int test_vector()
   vector_test.~vector();
 
   printf("%x\n", rawdata);
-  return 0;
+  return 0;	
 }
 
 
 int main() {
-  //test_vector();
-  //return 0;
-	int ii = 0;
+  
+  int ii = 0;
 
   //return 0;
   GC *gc = new GC();
@@ -125,6 +187,36 @@ int main() {
   mt19937 engine{ device() };
   ZipfianDistribution<unsigned int> zipf_distribution(Parameters::n_groups, engine, 1.f);
   unsigned int *rawdata = zipf_distribution.get_rawdata(Parameters::n_data);
+  Benchmark<Roaring>::bench("Roaring", rawdata,
+	  [](Roaring& r, unsigned int& i) {r.add(i); },
+	  [](Roaring&r) -> int {return r.getSizeInBytes(); });
+  Benchmark<EWAHBoolArray<RID>>::bench("EWAH", rawdata,
+	  [](EWAHBoolArray<RID>& r, unsigned int& i) {r.addWord(i); },
+	  [](EWAHBoolArray<RID>&r) -> int {return r.sizeInBytes(); });
+  Benchmark<LIndex>::bench("My Vector", rawdata,
+	  [](LIndex& r, unsigned int& i) {r.emplace_back(i); },
+	  [](LIndex&r) -> int {return r.capacity() * sizeof(RID); });
+  Benchmark<LIndex>::bench("My Vector + GC", rawdata,
+	  [](LIndex& r, unsigned int& i) {r.emplace_back(i); },
+	  [](LIndex&r) -> int {return r.capacity() * sizeof(RID); },
+	  [](GC* gc) -> void* {return reinterpret_cast<void*>(new LIndex(gc)); }, gc
+  );
+
+  Benchmark<bm::bvector<>>::bench("BitMagic", rawdata,
+	  [](bm::bvector<>& r, unsigned int& i) {r.set(i); },
+	  [](bm::bvector<>&r) -> int {
+		bm::bvector<>::statistics stats;
+		r.calc_stat(&stats);
+		return stats.memory_used;
+	  },
+	  [](GC* gc) -> void*{
+		  bm::bvector<> *bv = new bm::bvector<>; 
+		  bv->set_new_blocks_strat(bm::BM_GAP);
+		  return reinterpret_cast<void *>(bv);
+	  }
+  );
+  
+
   unordered_map<int, LIndex*> lineage;
   auto time = chrono::steady_clock::now();
 
@@ -139,6 +231,8 @@ int main() {
 	}
   }
   size_t space_consumption = 0;  
+  	
+
   printf("time myvector + gc: %lf ms\n Group space usage:",
 	chrono::duration<double, milli>(chrono::steady_clock::now() - time).count());
   ii = 0;
@@ -194,6 +288,7 @@ int main() {
 	  chrono::duration<double, milli>(chrono::steady_clock::now() - time).count());
   space_consumption = 0;
   ii = 0;
+  
   for (auto& lidx : lineage_ewah)
   {
 	  space_consumption += lidx.second->sizeInBytes();
@@ -204,6 +299,11 @@ int main() {
   printf("total space ewah: %u Bytes\n", space_consumption );
   lineage_ewah.clear();
 
+
+
+
+
+  
   return 0;
 
 }

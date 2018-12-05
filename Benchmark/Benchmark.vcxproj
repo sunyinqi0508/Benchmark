@@ -114,7 +114,7 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS; _CRT_SECURE_NO_DEPRECATES;</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)/include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/include;;$(SolutionDir)/include/BitMagic</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
       <LanguageStandard>stdcpplatest</LanguageStandard>
@@ -157,7 +157,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
@@ -165,11 +165,10 @@
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS; _CRT_SECURE_NO_DEPRECATES;</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(SolutionDir)/include;</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)/include/BitMagic;$(SolutionDir)/include;</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
-      <LanguageStandard>stdcpplatest</LanguageStandard>
-      <EnableModules>true</EnableModules>
+      <EnableModules>false</EnableModules>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <OmitFramePointers>true</OmitFramePointers>
@@ -178,6 +177,7 @@
       <ExceptionHandling>false</ExceptionHandling>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -189,12 +189,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Benchmark.cpp" />
-    <ClCompile Include="FileIO.cpp" />
-    <ClCompile Include="gc.cpp" />
-    <ClCompile Include="LIndex.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\include\Benchmark.h" />
     <ClInclude Include="..\include\distribution.hpp" />
     <ClInclude Include="..\include\FileIO.h" />
@@ -203,6 +197,12 @@
     <ClInclude Include="..\include\Parameters.h" />
     <ClInclude Include="..\include\tools.hpp" />
     <ClInclude Include="..\include\zipfian_distribution.hpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Benchmark.cpp" />
+    <ClCompile Include="FileIO.cpp" />
+    <ClCompile Include="gc.cpp" />
+    <ClCompile Include="LIndex.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
