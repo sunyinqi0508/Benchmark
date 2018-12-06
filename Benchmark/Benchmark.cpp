@@ -7,6 +7,7 @@
 #include <thread>
 #include <roaring/roaring.h>
 #include <roaring/cpp/roaring.hh>
+#include <filesystem>
 #include "Parameters.h"
 #include "Benchmark.h"
 #include "LIndex.h"
@@ -20,8 +21,9 @@
 
 using namespace std;
 using namespace LIndexUnwarpped;
-
-
+FileIO fio;
+Endl fendl;
+Break fbreak;
 
 template<class _Compressor_t>
 Benchmark<_Compressor_t>::Benchmark(const char* method_name, unsigned int* rawdata,
@@ -37,6 +39,8 @@ Benchmark<_Compressor_t>::Benchmark(const char* method_name, unsigned int* rawda
 template<class _Compressor_t>
 inline void Benchmark<_Compressor_t>::operator()()
 {
+	fio << method_name;
+	
 	unordered_map<int, _Compressor_t *>lineage;
 	chrono::time_point<chrono::steady_clock > time = chrono::steady_clock::now();
 	for (unsigned int i = 0; i < Parameters::n_data; ++i)
@@ -51,20 +55,23 @@ inline void Benchmark<_Compressor_t>::operator()()
 		else
 			emplace_back((*l->second), i);
 	}
-	size_t space_consumption = 0;
-
-
-	printf("time %s: %lf ms\n Group space usage:",
-		method_name, chrono::duration<double, milli>(chrono::steady_clock::now() - time).count());
+	
+	unsigned int space_consumption = 0;
+	const unsigned int _time = chrono::duration<double, milli>(chrono::steady_clock::now() - time).count();
+	fio << _time;
+	printf("time %s: %d ms\nGroup space usage: ",
+		method_name, _time);
 	int ii = 0;
 	for (auto& lidx : lineage)
 	{
-		space_consumption += get_size(*lidx.second);
-		printf("Group %d, size in Bytes %d \n", ii++, get_size(*lidx.second));
-
+		const unsigned int size = get_size(*lidx.second);
+		space_consumption += size;
+		printf("Group %d, %d; ", ii++, size);
+		fio << size;
 		delete lidx.second;
 	}
-	printf("total space %s : %u Bytes\n", method_name, space_consumption);
+	printf("\ntotal space: %u Bytes\n", space_consumption);
+	fio << space_consumption << fendl;
 
 	lineage.clear();
 }
@@ -179,14 +186,41 @@ int test_vector()
 int main() {
   
   int ii = 0;
-
   //return 0;
+
   GC *gc = new GC();
   gc->start();
+
   random_device device{};
   mt19937 engine{ device() };
   ZipfianDistribution<unsigned int> zipf_distribution(Parameters::n_groups, engine, 1.f);
   unsigned int *rawdata = zipf_distribution.get_rawdata(Parameters::n_data);
+  char csv_name[1024];
+  sprintf(csv_name, "./results/%s.csv", Tools::getTimeHash());
+  fio.open(csv_name);
+  FILE *fp = fio.getFileHandle();
+  fio << "Data stats" << fbreak;
+
+  for (int i = 0; i < Parameters::n_groups; ++i)
+  {
+	  char buf[33];
+	  sprintf_s(buf, "Group %d Size", i);
+	  fio << buf;
+  };
+  fio<<"Total size (Bytes)" << fendl;
+  for (int i = 0; i < Parameters::n_groups; ++i)
+	  fio << (unsigned int)std::count(rawdata, rawdata + Parameters::n_data, i) * 4;
+  fio << Parameters::n_data * 4 << fendl;
+
+  fio << "Method Name" << "Time Consumption (ms)";
+  for (int i = 0; i < Parameters::n_groups; ++i)
+  {
+	  char buf[33];
+	  sprintf_s(buf, "Group %d", i);
+	  fio << buf;
+  };
+  fio << "Total Memory Consumption (Bytes)" << fendl;
+
   Benchmark<Roaring>::bench("Roaring", rawdata,
 	  [](Roaring& r, unsigned int& i) {r.add(i); },
 	  [](Roaring&r) -> int {return r.getSizeInBytes(); });
@@ -209,13 +243,13 @@ int main() {
 		r.calc_stat(&stats);
 		return stats.memory_used;
 	  },
-	  [](GC* gc) -> void*{
+	  [](GC*) -> void*{
 		  bm::bvector<> *bv = new bm::bvector<>; 
 		  bv->set_new_blocks_strat(bm::BM_GAP);
 		  return reinterpret_cast<void *>(bv);
 	  }
   );
-  
+  //FastPForLib::FastPFor fpf;
 
   unordered_map<int, LIndex*> lineage;
   auto time = chrono::steady_clock::now();
@@ -300,8 +334,8 @@ int main() {
   lineage_ewah.clear();
 
 
-
-
+  fio.close();
+  filesystem::copy_file(filesystem::path(csv_name), filesystem::path("./latest_result.csv"),filesystem::copy_options::overwrite_existing);
 
   
   return 0;

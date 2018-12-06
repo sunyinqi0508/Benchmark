@@ -43,6 +43,45 @@ bool FileIO::SaveCSVFile(
   return 0;
 }
 
+FileIO & FileIO::operator<<(SupportedData data)
+{
+	// TODO: insert return statement here
+	if (fp)
+		switch (data.id) {
+		case SupportedData::TypesInt:
+			fprintf(fp, "%d,", *(uint32_t*)data.val);
+			break;
+		case SupportedData::TypesFloat:
+			fprintf(fp, "%f,", *(float*)data.val);
+			break;
+		case SupportedData::TypesString:
+			output_string(fp, (const char*)data.val);
+			break;
+		case SupportedData::TypesBreak:
+			fprintf(fp, ",");
+			break;
+		case SupportedData::TypeNewLine:
+			fprintf(fp, "\n");
+			break; 
+		default:
+			;//fclose(fp);
+		}
+	else
+		printf("Error: no files opened.\n");
+	return *this;
+}
+
+FileIO & FileIO::operator+(SupportedData d)
+{
+
+	return *this;
+}
+
+FILE* FileIO::getFileHandle()
+{
+	return fp;
+}
+
 void FileIO::output_string(FILE *fp, const char * attrib)
 {
   bool escape = false;
