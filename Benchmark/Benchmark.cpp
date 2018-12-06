@@ -4,6 +4,7 @@
 #include <vector>
 #include <chrono>
 #include <unordered_map>
+#include <unordered_set>
 #include <thread>
 #include <roaring/roaring.h>
 #include <roaring/cpp/roaring.hh>
@@ -199,7 +200,7 @@ int main() {
   sprintf(csv_name, "./results/%s.csv", Tools::getTimeHash());
   fio.open(csv_name);
   FILE *fp = fio.getFileHandle();
-  fio << "Data stats" << fbreak;
+  fio << "Data stats"<<fbreak;
 
   for (int i = 0; i < Parameters::n_groups; ++i)
   {
@@ -207,9 +208,23 @@ int main() {
 	  sprintf_s(buf, "Group %d Size", i);
 	  fio << buf;
   };
-  fio<<"Total size (Bytes)" << fendl;
-  for (int i = 0; i < Parameters::n_groups; ++i)
-	  fio << (unsigned int)std::count(rawdata, rawdata + Parameters::n_data, i) * 4;
+  fio<<"Total size (Bytes)" << fendl<<fbreak<<fbreak;
+  int lastelement = (Parameters::n_data) * (Parameters::n_data - 1) / 2;
+  unordered_set<int> set1;
+  for (int i = 0; i < Parameters::n_data; ++i)
+  {
+	  if (set1.find(rawdata[i]) == set1.end())
+	  {
+		  lastelement -= rawdata[i];
+		  set1.insert(rawdata[i]);
+		  fio << (unsigned int)std::count(rawdata, rawdata + Parameters::n_data, rawdata[i]) * 4;
+		  if (set1.size() == Parameters::n_data - 1)
+		  {
+			  fio << (unsigned int)std::count(rawdata, rawdata + Parameters::n_data, lastelement) * 4;
+			  break;
+		  }
+	  }
+  }
   fio << Parameters::n_data * 4 << fendl;
 
   fio << "Method Name" << "Time Consumption (ms)";
@@ -335,7 +350,8 @@ int main() {
 
 
   fio.close();
-  filesystem::copy_file(filesystem::path(csv_name), filesystem::path("./latest_result.csv"),filesystem::copy_options::overwrite_existing);
+  filesystem::copy_file(filesystem::path(csv_name), 
+	  filesystem::path("./latest_result.csv"),filesystem::copy_options::overwrite_existing);
 
   
   return 0;

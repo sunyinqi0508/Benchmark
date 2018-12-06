@@ -1,0 +1,8 @@
+Data stats,,Group 0 Size,Group 1 Size,Group 2 Size,Group 3 Size,Group 4 Size,Group 5 Size,Group 6 Size,Group 7 Size,Group 8 Size,Group 9 Size,Total size (Bytes),
+,,1764,820,544,384,372,288,240,216,156,152,4936,
+Method Name,Time Consumption (ms),Group 0,Group 1,Group 2,Group 3,Group 4,Group 5,Group 6,Group 7,Group 8,Group 9,Total Memory Consumption (Bytes),
+Roaring,13,94,898,208,160,426,92,124,136,288,202,2628,
+EWAH,16,160,1764,388,292,824,156,220,244,548,376,4972,
+My Vector,10,168,1896,564,376,844,168,252,252,564,376,5460,
+My Vector + GC,13,168,1896,564,376,844,168,252,252,564,376,5460,
+BitMagic,13,2376,4680,2632,2632,3144,2376,2376,2376,2632,2632,27856,
