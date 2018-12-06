@@ -9,7 +9,6 @@
 *.ilk
 *.dll
 *.out
-*.csv
 *.lib
 *.a
 *.so
