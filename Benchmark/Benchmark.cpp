@@ -204,7 +204,7 @@ int main() {
   for (int i = 0; i < Parameters::n_groups; ++i)
   {
 	  char buf[33];
-	  sprintf_s(buf, "Group %d Size", i);
+	  sprintf(buf, "Group %d Size", i);
 	  fio << buf;
   };
   fio<<"Total size (Bytes)" << fendl<<fbreak<<fbreak;
@@ -230,7 +230,7 @@ int main() {
   for (int i = 0; i < Parameters::n_groups; ++i)
   {
 	  char buf[33];
-	  sprintf_s(buf, "Group %d", i);
+	  sprintf(buf, "Group %d", i);
 	  fio << buf;
   };
   fio << "Total Memory Consumption (Bytes)" << fendl;

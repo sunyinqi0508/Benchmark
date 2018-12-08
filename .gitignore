@@ -9,8 +9,6 @@
 *.ilk
 *.dll
 *.out
-*.lib
-*.a
 *.so
 *.dylib
 *.log

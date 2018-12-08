@@ -3,6 +3,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_DEPRECATES
 #include <cstdio>
+#include <stdlib.h>
 class SupportedData {
   //friend FileIO;
 public:
@@ -21,7 +22,7 @@ public:
 
   ~SupportedData() { 
 	  if ((id == TypesInt || id == TypesFloat) && val) 
-			{ delete val; val = 0; } 
+			{ free(const_cast<void *>(val)); val = 0; } 
   }
 };
 using Endl = SupportedData::Endl;

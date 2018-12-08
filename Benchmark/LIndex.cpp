@@ -1,5 +1,7 @@
 #include "LIndex.h"
 #include "gc.h"
+#include <stdlib.h>
+#include <string.h>
 #include <future>
 #include <thread>
 LIndex::LIndex(GC *gc) : _capacity(LIndex::initial_size), _size(0), garbage_collector(gc){

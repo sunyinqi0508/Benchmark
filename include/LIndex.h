@@ -5,6 +5,9 @@
 //#include <vector>
 //#include <cstddef>
 //template <typename _Ty>
+#ifndef _MSC_VER
+#define __forceinline //[[gnu::always_inline]] inline
+#endif
 using _Size32_t = unsigned int;
 typedef _Size32_t RID;
 class LIndex;
@@ -39,7 +42,7 @@ public:
   _Size32_t capacity() const;
   void reserve(const _Size32_t _capacity);
   const RID* data() const;
-
+  
 };
 
 

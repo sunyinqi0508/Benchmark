@@ -1,0 +1,6 @@
+Data stats,,Group 0 Size,Group 1 Size,Group 2 Size,Group 3 Size,Group 4 Size,Group 5 Size,Group 6 Size,Group 7 Size,Group 8 Size,Group 9 Size,Total size (Bytes),
+,,1656,236,228,404,336,872,256,568,220,160,4936,
+Method Name,Time Consumption (ms),Group 0,Group 1,Group 2,Group 3,Group 4,Group 5,Group 6,Group 7,Group 8,Group 9,Total Memory Consumption (Bytes),
+EWAH,0.249600,164,224,572,260,240,1656,232,408,340,876,4972,
+My Vector,0.181600,168,252,844,376,252,1896,252,564,376,1264,6244,
+My Vector + GC,0.181700,1
