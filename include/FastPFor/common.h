@@ -52,7 +52,7 @@
 
 #define __attribute__(n)
 #define __restrict__ __restrict
-#define constexpr inline
+//#define constexpr inline
 
 #endif
 

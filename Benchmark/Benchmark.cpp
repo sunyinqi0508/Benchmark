@@ -19,6 +19,11 @@
 #include "FastPFor/fastpfor.h"
 #include "FastPFor/bitpacking.h"
 #include "bm.h"
+#define _TYPE_OF(_Ty) ((_Ty *)NULL)
+#define _TIME_(ret, x) {auto _in_scope_timing_ = chrono::steady_clock::now();\
+(x)\
+(ret) = chrono::duration_cast<double, milli>\
+	(chrono::steady_clock::now() - _in_scope_timing_).count();}
 
 using namespace std;
 using namespace LIndexUnwarpped;
@@ -26,22 +31,16 @@ FileIO fio;
 Endl fendl;
 Break fbreak;
 
-template<class _Compressor_t>
-Benchmark<_Compressor_t>::Benchmark(const char* method_name, unsigned int* rawdata,
-	void(*emplace_back)(_Compressor_t&, unsigned int& i),
-	int(*get_size)(_Compressor_t&),
-	void* (*init)(GC*),
-	GC *gc
-	) :
-	method_name(method_name), rawdata(rawdata), emplace_back(emplace_back), get_size(get_size), 
-	init(init), gc(gc)
-{}
 
-template<class _Compressor_t>
-inline void Benchmark<_Compressor_t>::operator()()
+
+template<class _Compressor_t, class _Init_t, class _Emplace_t, class _GetSize_t>
+constexpr Benchmark<_Compressor_t, _Init_t, _Emplace_t, _GetSize_t>::Benchmark(const _Compressor_t*,
+	const char * method_name, unsigned int * rawdata, 
+	_Emplace_t emplace_back, _GetSize_t get_size, _Init_t init, 
+	GC * gc) noexcept
 {
 	fio << method_name;
-	
+
 	unordered_map<int, _Compressor_t *>lineage;
 	chrono::time_point<chrono::steady_clock > time = chrono::steady_clock::now();
 	for (unsigned int i = 0; i < Parameters::n_data; ++i)
@@ -50,17 +49,17 @@ inline void Benchmark<_Compressor_t>::operator()()
 		if (l == lineage.end())
 		{
 			auto back = lineage.insert(std::make_pair(
-				rawdata[i], init?(_Compressor_t*)init(gc) : new _Compressor_t()));
+				rawdata[i], init(gc)));
 			emplace_back(*(back.first)->second, i);
 		}
 		else
 			emplace_back((*l->second), i);
 	}
-	
+
 	unsigned int space_consumption = 0;
-	const unsigned int _time = chrono::duration<double, milli>(chrono::steady_clock::now() - time).count();
+	const float _time = chrono::duration<double, milli>(chrono::steady_clock::now() - time).count();
 	fio << _time;
-	printf("time %s: %d ms\nGroup space usage: ",
+	printf("time %s: %lf ms\nGroup space usage: ",
 		method_name, _time);
 	int ii = 0;
 	for (auto& lidx : lineage)
@@ -77,15 +76,12 @@ inline void Benchmark<_Compressor_t>::operator()()
 	lineage.clear();
 }
 
-template<class _Compressor_t>
-void Benchmark<_Compressor_t>::bench(
-	const char * method_name, unsigned int * rawdata,
-	void(*emplace_back)(_Compressor_t &, unsigned int &i),
-	int(*get_size)(_Compressor_t &), void *(*init)(GC*), GC* gc)
+template<class _Compressor_t, class _Init_t, class _Emplace_t, class _GetSize_t>
+inline void Benchmark<_Compressor_t, _Init_t, _Emplace_t, _GetSize_t>::operator()()
 {
-	Benchmark b(method_name, rawdata, emplace_back, get_size, init , gc);
-	b();
+
 }
+
 
 
 
@@ -195,7 +191,10 @@ int main() {
   random_device device{};
   mt19937 engine{ device() };
   ZipfianDistribution<unsigned int> zipf_distribution(Parameters::n_groups, engine, 1.f);
+  uniform_int_distribution<unsigned int> unifrom_distribution{ 0, Parameters::n_groups };
+
   unsigned int *rawdata = zipf_distribution.get_rawdata(Parameters::n_data);
+#pragma region csv_prep
   char csv_name[1024];
   sprintf(csv_name, "./results/%s.csv", Tools::getTimeHash());
   fio.open(csv_name);
@@ -235,36 +234,45 @@ int main() {
 	  fio << buf;
   };
   fio << "Total Memory Consumption (Bytes)" << fendl;
+#pragma endregion
 
-  Benchmark<Roaring>::bench("Roaring", rawdata,
+  Benchmark b1(_TYPE_OF(Roaring), "Roaring", rawdata,
 	  [](Roaring& r, unsigned int& i) {r.add(i); },
-	  [](Roaring&r) -> int {return r.getSizeInBytes(); });
-  Benchmark<EWAHBoolArray<RID>>::bench("EWAH", rawdata,
+	  [](Roaring&r) -> int {return r.getSizeInBytes(); },
+	  _Default_initizer<Roaring>
+  );
+  Benchmark b2(_TYPE_OF(EWAHBoolArray<RID>), "EWAH", rawdata,
 	  [](EWAHBoolArray<RID>& r, unsigned int& i) {r.addWord(i); },
-	  [](EWAHBoolArray<RID>&r) -> int {return r.sizeInBytes(); });
-  Benchmark<LIndex>::bench("My Vector", rawdata,
-	  [](LIndex& r, unsigned int& i) {r.emplace_back(i); },
-	  [](LIndex&r) -> int {return r.capacity() * sizeof(RID); });
-  Benchmark<LIndex>::bench("My Vector + GC", rawdata,
+	  [](EWAHBoolArray<RID>&r) -> int {return r.sizeInBytes(); },
+	  _Default_initizer<EWAHBoolArray<RID>>
+  ); 
+  Benchmark b3(_TYPE_OF(LIndex), "My Vector", rawdata,
 	  [](LIndex& r, unsigned int& i) {r.emplace_back(i); },
 	  [](LIndex&r) -> int {return r.capacity() * sizeof(RID); },
-	  [](GC* gc) -> void* {return reinterpret_cast<void*>(new LIndex(gc)); }, gc
+	  _Default_initizer<LIndex>
   );
-
-  Benchmark<bm::bvector<>>::bench("BitMagic", rawdata,
+  Benchmark b4(_TYPE_OF(LIndex), "My Vector + GC", rawdata,
+	  [](LIndex& r, unsigned int& i) {r.emplace_back(i); },
+	  [](LIndex&r) -> int {return r.capacity() * sizeof(RID); },
+	  [](GC* gc) -> LIndex* {return (new LIndex(gc)); }, gc
+  );
+  Benchmark b5(_TYPE_OF(bm::bvector<>), "BitMagic", rawdata,
 	  [](bm::bvector<>& r, unsigned int& i) {r.set(i); },
 	  [](bm::bvector<>&r) -> int {
-		bm::bvector<>::statistics stats;
-		r.calc_stat(&stats);
-		return stats.memory_used;
-	  },
-	  [](GC*) -> void*{
-		  bm::bvector<> *bv = new bm::bvector<>; 
+		  bm::bvector<>::statistics stats;
+		  r.calc_stat(&stats);
+		  return stats.memory_used;
+	  }, 
+	  [](GC*) -> bm::bvector<>* {
+		  bm::bvector<> *bv = new bm::bvector<>;
 		  bv->set_new_blocks_strat(bm::BM_GAP);
-		  return reinterpret_cast<void *>(bv);
+		  return (bv);
 	  }
-  );
+  ); 
   //FastPForLib::FastPFor fpf;
+  
+#pragma region lagacy
+  //Lagacy benchmark codes. For best performance.
 
   unordered_map<int, LIndex*> lineage;
   auto time = chrono::steady_clock::now();
@@ -347,13 +355,15 @@ int main() {
   }
   printf("total space ewah: %u Bytes\n", space_consumption );
   lineage_ewah.clear();
-
+#pragma endregion
 
   fio.close();
-  filesystem::copy_file(filesystem::path(csv_name), 
-	  filesystem::path("./latest_result.csv"),filesystem::copy_options::overwrite_existing);
-
+  error_code error;
+  filesystem::copy_file(filesystem::path(csv_name), filesystem::path("./latest_result.csv"),
+	  filesystem::copy_options::overwrite_existing, error);
+  if (error)
+	  printf("copy result failed, go to results directory to find the latest results.\n");
+  printf("results saved to: %s", csv_name);
   
   return 0;
-
 }

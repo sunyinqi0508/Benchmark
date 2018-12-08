@@ -3,29 +3,31 @@
 #include "Parameters.h"
 #include "gc.h"
 #include <chrono>
+#include "roaring/roaring.h"
+//typedef  int(*_Intellisense_T1)(Roaring &);
+//typedef  void *(*_Intellisense_T2)(GC * gc);
+//typedef  void(*_Intellisense_T3)(Roaring&, unsigned int& i);
+
 template<class _Compressor_t>
+auto _Default_initizer = [](GC*) -> _Compressor_t* {return new _Compressor_t(); };
+
+template<class _Compressor_t, class _Init_t, class _Emplace_t, class _GetSize_t>
 class Benchmark {
 
 private:
 	
-	int (*get_size)(_Compressor_t&);
-	void *(*init)(GC * gc);
-	void (*emplace_back)(_Compressor_t&, unsigned int& i);
-	const char* method_name;
-	unsigned int* rawdata;
-	GC *gc;
-	
-	Benchmark(const char* method_name, unsigned int* rawdata,
-		void(*emplace_back)(_Compressor_t&, unsigned int& i),
-		int(*get_size)(_Compressor_t&),
-		void *(*init)(GC* gc), GC* gc
-	);
-	void operator()();
+	//int (*get_size)(_Compressor_t&);
+	//void *(*init)(GC * gc);
+	//void (*emplace_back)(_Compressor_t&, unsigned int& i);
+
 public:	
-	static void bench(const char* method_name, unsigned int* rawdata,
-		 void(*emplace_back)(_Compressor_t&, unsigned int& i),
-		 int (*get_size)(_Compressor_t&), void *(*init)(GC* gc) = 0,GC* gc = 0
-	);
+	constexpr Benchmark(const _Compressor_t*, const char* method_name, unsigned int* rawdata,
+		_Emplace_t emplace_back, _GetSize_t get_size, _Init_t init,
+		GC* gc = 0
+	) noexcept;	
+	void operator()();
+
 };
+
 
 #endif
