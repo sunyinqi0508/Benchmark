@@ -12,7 +12,7 @@
 #include "Parameters.h"
 #include "Benchmark.h"
 #include "LIndex.h"
-#include "zipfian_distribution.hpp"
+#include "DataGen.hpp"
 #include "FileIO.h"
 #include "EWAH/ewah.h"
 #include "EWAH/boolarray.h"
@@ -111,7 +111,7 @@ int test_vector()
   printf("time array: %lf ms\n",
 	chrono::duration<double, milli>(chrono::steady_clock::now() - time).count());
   array_test[u_rand(engine)] = u_rand(engine);
-  printf("%x %d\n", rawdata, array_test[u_rand(engine)]);
+  printf("%lx %d\n", rawdata, array_test[u_rand(engine)]);
 
   time = chrono::steady_clock::now();
   
@@ -181,24 +181,29 @@ int test_vector()
 
 
 int main() {
-  
+	PQDump();
+	return 0;
+
   int ii = 0;
   //return 0;
 
   GC *gc = new GC();
   gc->start();
-
   random_device device{};
   mt19937 engine{ device() };
   ZipfianDistribution<unsigned int> zipf_distribution(Parameters::n_groups, engine, 1.f);
   uniform_int_distribution<unsigned int> unifrom_distribution{ 0, Parameters::n_groups };
 
   unsigned int *rawdata = zipf_distribution.get_rawdata(Parameters::n_data);
-#pragma region csv_prep
+
   char csv_name[1024];
   sprintf(csv_name, "./results/%s.csv", Tools::getTimeHash());
   fio.open(csv_name);
   FILE *fp = fio.getFileHandle();
+#pragma region metadata
+  //data_gen
+  
+  fio << "DATA ID:" << 1u << fendl;
   fio << "Data stats"<<fbreak;
 
   for (int i = 0; i < Parameters::n_groups; ++i)
@@ -225,7 +230,9 @@ int main() {
 	  }
   }
   fio << Parameters::n_data * 4 << fendl;
+#pragma endregion
 
+  fio << "RUNID:" << 1u<<fendl;
   fio << "Method Name" << "Time Consumption (ms)";
   for (int i = 0; i < Parameters::n_groups; ++i)
   {
@@ -234,7 +241,7 @@ int main() {
 	  fio << buf;
   };
   fio << "Total Memory Consumption (Bytes)" << fendl;
-#pragma endregion
+
 
   Benchmark b1(_TYPE_OF(Roaring), "Roaring", rawdata,
 	  [](Roaring& r, unsigned int& i) {r.add(i); },
