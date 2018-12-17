@@ -6,8 +6,13 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <thread>
+#ifndef _MSC_VER
+#include <roaring_linux/roaring.h>
+#include <roaring_linux/cpp/roaring.hh>
+#else
 #include <roaring/roaring.h>
 #include <roaring/cpp/roaring.hh>
+#endif
 #include <filesystem>
 #include "Parameters.h"
 #include "Benchmark.h"
@@ -21,29 +26,30 @@
 #include "bm.h"
 #define _TYPE_OF(_Ty) ((_Ty *)NULL)
 #define _TIME_(ret, x) {auto _in_scope_timing_ = chrono::steady_clock::now();\
-(x)\
-(ret) = chrono::duration_cast<double, milli>\
+x\
+(ret) = chrono::duration<double, milli>\
 	(chrono::steady_clock::now() - _in_scope_timing_).count();}
 
 using namespace std;
 using namespace LIndexUnwarpped;
+using namespace Parameters;
 FileIO fio;
 Endl fendl;
 Break fbreak;
 
 
 
-template<class _Compressor_t, class _Init_t, class _Emplace_t, class _GetSize_t>
-constexpr Benchmark<_Compressor_t, _Init_t, _Emplace_t, _GetSize_t>::Benchmark(const _Compressor_t*,
-	const char * method_name, unsigned int * rawdata, 
+template<class _Compressor_t, class _Init_t, class _Emplace_t, class _GetSize_t, class _Finalization_t>
+constexpr Benchmark<_Compressor_t, _Init_t, _Emplace_t, _GetSize_t, _Finalization_t>::Benchmark(const _Compressor_t*,
+	const char * method_name, unsigned int * rawdata, unsigned int n_data,
 	_Emplace_t emplace_back, _GetSize_t get_size, _Init_t init, 
-	GC * gc) noexcept
+	_Finalization_t fin, GC * gc) noexcept
 {
 	fio << method_name;
 
 	unordered_map<int, _Compressor_t *>lineage;
 	chrono::time_point<chrono::steady_clock > time = chrono::steady_clock::now();
-	for (unsigned int i = 0; i < Parameters::n_data; ++i)
+	for (unsigned int i = 0; i < n_data; ++i)
 	{
 		auto l = lineage.find(rawdata[i]);
 		if (l == lineage.end())
@@ -68,6 +74,7 @@ constexpr Benchmark<_Compressor_t, _Init_t, _Emplace_t, _GetSize_t>::Benchmark(c
 		space_consumption += size;
 		printf("Group %d, %d; ", ii++, size);
 		fio << size;
+		fin(*lidx.second);
 		delete lidx.second;
 	}
 	printf("\ntotal space: %u Bytes\n", space_consumption);
@@ -76,12 +83,48 @@ constexpr Benchmark<_Compressor_t, _Init_t, _Emplace_t, _GetSize_t>::Benchmark(c
 	lineage.clear();
 }
 
-template<class _Compressor_t, class _Init_t, class _Emplace_t, class _GetSize_t>
-inline void Benchmark<_Compressor_t, _Init_t, _Emplace_t, _GetSize_t>::operator()()
+template<class _Compressor_t, class _Init_t, class _Emplace_t, class _GetSize_t, class _Finalization_t>
+constexpr Benchmark<_Compressor_t, _Init_t, _Emplace_t, _GetSize_t, _Finalization_t>::Benchmark(const _Compressor_t*,
+	const char * method_name, unsigned int * rawdata, unsigned int n_data,
+	_Emplace_t emplace_back, _GetSize_t get_size, _Init_t init,
+	_Finalization_t fin, unsigned int batch_size, GC * gc) noexcept
 {
+	fio << method_name;
 
+	unordered_map<int, _Compressor_t *>lineage;
+	chrono::time_point<chrono::steady_clock > time = chrono::steady_clock::now();
+	for (unsigned int i = 0; i < n_data; ++i)
+	{
+		auto l = lineage.find(rawdata[i]);
+		if (l == lineage.end())
+		{
+			auto back = lineage.insert(std::make_pair(rawdata[i], init(gc)));
+			emplace_back(*(back.first)->second, i);
+		}
+		else
+			emplace_back((*l->second), i);
+	}
+
+	unsigned int space_consumption = 0;
+	const float _time = chrono::duration<double, milli>(chrono::steady_clock::now() - time).count();
+	fio << _time;
+	printf("time %s: %lf ms\nGroup space usage: ",
+		method_name, _time);
+	int ii = 0;
+	for (auto& lidx : lineage)
+	{
+		const unsigned int size = get_size(*lidx.second);
+		space_consumption += size;
+		printf("Group %d, %d; ", ii++, size);
+		fio << size;
+		fin(*lidx.second);
+		delete lidx.second;
+	}
+	printf("\ntotal space: %u Bytes\n", space_consumption);
+	fio << space_consumption << fendl;
+
+	lineage.clear();
 }
-
 
 
 
@@ -179,10 +222,93 @@ int test_vector()
   return 0;	
 }
 
+void bench(GC *gc, unsigned int *rawdata, const Tests &t, const unsigned int i = 0) {
 
-int main() {
-	PQDump();
-	return 0;
+#pragma region metadata
+	//data_gen
+
+	fio << "DATA ID:" << i << fendl;
+	fio << "Data stats" << "Theta";
+
+	for (int i = 0; i < t.n_groups; ++i)
+	{
+		char buf[33];
+		sprintf(buf, "Group %d Size", i);
+		fio << buf;
+	};
+	fio << "Total size (Bytes)" << fendl << fbreak << (float)t.theta;
+	int lastelement = (t.n_data) * (t.n_data - 1) / 2;
+	unordered_set<int> set1;
+	for (int i = 0; i < t.n_data; ++i)
+	{
+		if (set1.find(rawdata[i]) == set1.end())
+		{
+			lastelement -= rawdata[i];
+			set1.insert(rawdata[i]);
+			fio << (unsigned int)std::count(rawdata, rawdata + t.n_data, rawdata[i]) * 4;
+			if (set1.size() == t.n_data - 1)
+			{
+				fio << (unsigned int)std::count(rawdata, rawdata +t.n_data, lastelement) * 4;
+				break;
+			}
+		}
+	}
+	fio << t.n_data * 4 << fendl;
+#pragma endregion
+
+	fio << "RUNID:" << 1u << fendl;
+	fio << "Method Name" << "Time Consumption (ms)";
+	for (int i = 0; i < t.n_groups; ++i)
+	{
+		char buf[33];
+		sprintf(buf, "Group %d", i);
+		fio << buf;
+	};
+	fio << "Total Memory Consumption (Bytes)" << fendl;
+
+
+	Benchmark b1(_TYPE_OF(Roaring), "Roaring", rawdata, t.n_data,
+		[](Roaring& r, unsigned int& i) {r.add(i); },
+		[](Roaring&r) -> int {return r.getSizeInBytes(); },
+		_Default_initizer<Roaring>, [](Roaring& r) {
+			uint64_t _t;
+			_TIME_(_t, cout<<(r.runOptimize()?"true":"false")<<' '; r.shrinkToFit(););
+			printf("rc: %d %d ", _t, r.getSizeInBytes());
+		}
+	);
+	Benchmark b2(_TYPE_OF(EWAHBoolArray<RID>), "EWAH", rawdata, t.n_data,
+		[](EWAHBoolArray<RID>& r, unsigned int& i) { r.addWord(i); },
+		[](EWAHBoolArray<RID>&r) -> int {return r.sizeInBytes(); },
+		_Default_initizer<EWAHBoolArray<RID>>, _Default_finalizer<EWAHBoolArray<RID>>
+	);
+	Benchmark b3(_TYPE_OF(LIndex), "My Vector", rawdata, t.n_data,
+		[](LIndex& r, unsigned int& i) {r.emplace_back(i); },
+		[](LIndex&r) -> int {return r.capacity() * sizeof(RID); },
+		_Default_initizer<LIndex>, _Default_finalizer<LIndex>
+	);
+	Benchmark b4(_TYPE_OF(LIndex), "My Vector + GC", rawdata, t.n_data,
+		[](LIndex& r, unsigned int& i) {r.emplace_back(i); },
+		[](LIndex&r) -> int {return r.capacity() * sizeof(RID); },
+		[](GC* gc) -> LIndex* {return (new LIndex(gc)); }, 
+		_Default_finalizer<LIndex>, gc
+	);
+	Benchmark b5(_TYPE_OF(bm::bvector<>), "BitMagic", rawdata, t.n_data,
+		[](bm::bvector<>& r, unsigned int& i) {r.set(i); },
+		[](bm::bvector<>&r) -> int {
+			bm::bvector<>::statistics stats;
+			r.calc_stat(&stats);
+			return stats.memory_used;
+		},
+		[](GC*) -> bm::bvector<>* {
+			bm::bvector<> *bv = new bm::bvector<>;
+			bv->set_new_blocks_strat(bm::BM_GAP);
+			return (bv);
+		}, _Default_finalizer<bm::bvector<>>
+		);
+}
+
+int lagacy_tests() {
+
 
   int ii = 0;
   //return 0;
@@ -232,50 +358,7 @@ int main() {
   fio << Parameters::n_data * 4 << fendl;
 #pragma endregion
 
-  fio << "RUNID:" << 1u<<fendl;
-  fio << "Method Name" << "Time Consumption (ms)";
-  for (int i = 0; i < Parameters::n_groups; ++i)
-  {
-	  char buf[33];
-	  sprintf(buf, "Group %d", i);
-	  fio << buf;
-  };
-  fio << "Total Memory Consumption (Bytes)" << fendl;
 
-
-  Benchmark b1(_TYPE_OF(Roaring), "Roaring", rawdata,
-	  [](Roaring& r, unsigned int& i) {r.add(i); },
-	  [](Roaring&r) -> int {return r.getSizeInBytes(); },
-	  _Default_initizer<Roaring>
-  );
-  Benchmark b2(_TYPE_OF(EWAHBoolArray<RID>), "EWAH", rawdata,
-	  [](EWAHBoolArray<RID>& r, unsigned int& i) {r.addWord(i); },
-	  [](EWAHBoolArray<RID>&r) -> int {return r.sizeInBytes(); },
-	  _Default_initizer<EWAHBoolArray<RID>>
-  ); 
-  Benchmark b3(_TYPE_OF(LIndex), "My Vector", rawdata,
-	  [](LIndex& r, unsigned int& i) {r.emplace_back(i); },
-	  [](LIndex&r) -> int {return r.capacity() * sizeof(RID); },
-	  _Default_initizer<LIndex>
-  );
-  Benchmark b4(_TYPE_OF(LIndex), "My Vector + GC", rawdata,
-	  [](LIndex& r, unsigned int& i) {r.emplace_back(i); },
-	  [](LIndex&r) -> int {return r.capacity() * sizeof(RID); },
-	  [](GC* gc) -> LIndex* {return (new LIndex(gc)); }, gc
-  );
-  Benchmark b5(_TYPE_OF(bm::bvector<>), "BitMagic", rawdata,
-	  [](bm::bvector<>& r, unsigned int& i) {r.set(i); },
-	  [](bm::bvector<>&r) -> int {
-		  bm::bvector<>::statistics stats;
-		  r.calc_stat(&stats);
-		  return stats.memory_used;
-	  }, 
-	  [](GC*) -> bm::bvector<>* {
-		  bm::bvector<> *bv = new bm::bvector<>;
-		  bv->set_new_blocks_strat(bm::BM_GAP);
-		  return (bv);
-	  }
-  ); 
   //FastPForLib::FastPFor fpf;
   
 #pragma region lagacy
@@ -373,4 +456,33 @@ int main() {
   printf("results saved to: %s", csv_name);
   
   return 0;
+}
+
+
+int main() {
+	int ii = 0;
+	GC *gc = new GC();
+	gc->start();
+	random_device device{};
+	mt19937 engine{ device() };
+
+	char csv_name[1024];
+	sprintf(csv_name, "./results/%s.csv", Tools::getTimeHash());
+	fio.open(csv_name);
+	FILE *fp = fio.getFileHandle();
+	for (int i = 0; i < n_tests; i++) {
+		ZipfianDistribution<unsigned int> zipf_distribution(tests[i].n_groups, engine, tests[i].theta);
+		unsigned int* rawdata = zipf_distribution.get_rawdata(tests[i].n_data);
+		bench(gc, rawdata, tests[i], i);
+		fio << fendl;
+		gc->feed(rawdata);
+	}
+	fio.close();
+	error_code error;
+	filesystem::copy_file(filesystem::path(csv_name), filesystem::path("./latest_result.csv"),
+		filesystem::copy_options::overwrite_existing, error);
+	if (error)
+		printf("copy result failed, go to results directory to find the latest results.\n");
+	printf("results saved to: %s", csv_name);
+	return 0;
 }

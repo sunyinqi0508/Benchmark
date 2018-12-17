@@ -59,7 +59,7 @@ void pgtestWrites() {
 	res = PQexec(connection, "COMMIT;");
 	PQfinish(connection);
 }
-void testreads() {
+void pgtestReads() {
 	PGconn *connection;
 	connection = PQconnectdb("user=postgres\
 		 password=0508\
@@ -105,12 +105,12 @@ void testreads() {
 
 			printf("%s %d %d %s %d \n", fname, fnumber, oid, types[oid].name, types[oid].length);
 			for (int j = 0; j < n_tuples; ++j)
-				if (string(types[oid].name).find("float")) {
+				if (string(types[oid].name).find("float") != string::npos) {
 					char * c_res = PQgetvalue(res, j, i);
 					std::reverse(c_res, c_res + 8);
 					printf("%10.f ", *(double *)c_res);
 				}
-				else if (string(types[oid].name).find("int"))
+				else if (string(types[oid].name).find("int") != string::npos)
 				{
 					char * c_res = PQgetvalue(res, j, i);
 					std::reverse(c_res, c_res + 4);
@@ -142,7 +142,7 @@ PQDump::PQDump()
 	PQexec(connection, "Drop table zip_205_100_1000000_unsorted;");
 	PQexec(connection, "create table zip_205_100_1000000_unsorted(g int, v float8);");
 
-	const char* sql = "COPY zip_205_100_1000000_unsorted from STDIN WITH BINARY;";
+	const char* sql = "copy zip_205_100_1000000_unsorted from STDIN WITH BINARY;";
 	PGresult *res = PQexec(connection, sql);
 	cout << PQstatus(connection) << '\n';
 	char* buffer = new char[30000000];
@@ -175,4 +175,3 @@ PQDump::PQDump()
 	res = PQexec(connection, "COMMIT;");
 	PQfinish(connection);
 }
-	
