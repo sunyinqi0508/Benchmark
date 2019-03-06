@@ -1,0 +1,22 @@
+{
+    "files.associations": {
+        "chrono": "cpp"
+    },
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/*.o" : true,
+        "**/*.so" : true,
+        "**/*.dll" : true,
+        "**/*.exe" : true,
+        "**/*.md" : true,
+        "**/*.csv" : true,
+        "**/*.vcxproj" : true,
+        "**/*.sln" : true,
+        "**/*.js" : true,
+
+    }
+}

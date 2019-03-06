@@ -5,6 +5,6 @@
 #define DISTRIBUTION
 template <typename T> class Distribution {
 public:
-  virtual std::string num_elems() = 0;
+	virtual std::string num_elems() = 0;
 };
 #endif

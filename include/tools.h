@@ -25,7 +25,6 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 namespace Tools {
-
 	extern const char* getCurrentTimeString();
 	extern const char* getTimeHash();
 }

@@ -17,7 +17,6 @@ PQDump::PQDump(const char * db_config)
 		delete connection;
 
 	connection = PQconnectdb(db_config);
-	
 }
 
 void pgtestWrites() {
@@ -26,18 +25,18 @@ void pgtestWrites() {
 		 dbname=test\
 		 host=localhost\
 		 hostaddr=127.0.0.1\
-		 port=5088");	
-	cout<<PQstatus(connection)<<' ';
+		 port=5088");
+	cout << PQstatus(connection) << ' ';
 	//PQexec(connection, "create table test2(attr1 int, attr2  float8);");
-	
+
 	const char* sql = "COPY test2 from STDIN WITH BINARY;";
 	PGresult *res = PQexec(connection, sql);
-	cout<<PQstatus(connection)<<'\n';
+	cout << PQstatus(connection) << '\n';
 	char* buffer = new char[65536];
 	unsigned int zero = 0;
 	int ints[] = { 123,1234,43536243,4 };
 	double doubles[] = { 1.23,.1234,43536234243.,4 };
-	memcpy(buffer , "PGCOPY\n\377\r\n\0", 11);
+	memcpy(buffer, "PGCOPY\n\377\r\n\0", 11);
 	memcpy(buffer + 11, (char*)&zero, 4);
 	memcpy(buffer + 15, (char*)&zero, 4);
 	unsigned short n_fields = 0x0200;
@@ -49,13 +48,13 @@ void pgtestWrites() {
 		memcpy(buffer + 19 + (22 * i), &n_fields, 2);
 		memcpy(buffer + 19 + (22 * i) + 2, &_4, 4);
 		memcpy(buffer + 19 + (22 * i) + 6, ints + i, 4);
-		std::reverse(buffer + 19+22 * i + 6, buffer +19+ 22 * i + 10);
+		std::reverse(buffer + 19 + 22 * i + 6, buffer + 19 + 22 * i + 10);
 		memcpy(buffer + 19 + (22 * i) + 10, &_8, 4);
 		memcpy(buffer + 19 + (22 * i + 14), doubles + i, 8);
-		std::reverse(buffer +19+ 22 * i + 14, buffer +19+ 22 * i + 22);
+		std::reverse(buffer + 19 + 22 * i + 14, buffer + 19 + 22 * i + 22);
 	}
 	cout << PQputCopyData(connection, buffer, 107) << ' ';
-	cout<<PQputCopyEnd(connection, 0)<<' ';
+	cout << PQputCopyEnd(connection, 0) << ' ';
 	res = PQexec(connection, "COMMIT;");
 	PQfinish(connection);
 }
@@ -79,7 +78,6 @@ void pgtestReads() {
 	unordered_map<Oid, PQType>  types;
 	for (int i = 0; i < rows; ++i)
 	{
-
 		const Oid oid = atoi(PQgetvalue(rr, i, 0));
 		const char* name = PQgetvalue(rr, i, 1);
 		const unsigned int len = atoi(PQgetvalue(rr, i, 2));
@@ -121,7 +119,6 @@ void pgtestReads() {
 			//printf("%s ", PQgetvalue(res, j, i));
 			printf("\n");
 		}
-
 	}
 	PQclear(res);
 	printf("%x", connection);
@@ -129,6 +126,8 @@ void pgtestReads() {
 }
 PQDump::PQDump()
 {
+	PQDumpG();
+	return;
 	if (connection)
 		delete connection;
 	connection = PQconnectdb("user=postgres\
@@ -146,13 +145,13 @@ PQDump::PQDump()
 	PGresult *res = PQexec(connection, sql);
 	cout << PQstatus(connection) << '\n';
 	char* buffer = new char[30000000];
-	unsigned int zero = 0;
+	const unsigned int zero = 0;
 	memcpy(buffer, "PGCOPY\n\377\r\n\0", 11);
 	memcpy(buffer + 11, (char*)&zero, 4);
 	memcpy(buffer + 15, (char*)&zero, 4);
-	unsigned short n_fields = 0x0200;
-	unsigned int _4 = 0x04000000;
-	unsigned int _8 = 0x08000000;
+	const unsigned short n_fields = 0x0200;
+	const unsigned int _4 = 0x04000000;
+	const unsigned int _8 = 0x08000000;
 	const int _offset = 19;
 	const int _tuple_size = 22;//2 + 4*2 + (4 + 8)
 	random_device device{};
@@ -162,7 +161,7 @@ PQDump::PQDump()
 	for (int i = 0; i < 1000000; ++i) {
 		unsigned zval = zipf.nextVal();
 		double uval = unif(re);
-		memcpy(buffer + _offset + (_tuple_size* i), &n_fields, 2.5);
+		memcpy(buffer + _offset + (_tuple_size* i), &n_fields, 2);
 		memcpy(buffer + _offset + (_tuple_size * i) + 2, &_4, 4);
 		memcpy(buffer + _offset + (_tuple_size * i) + 6, &zval, 4);
 		std::reverse(buffer + _offset + _tuple_size * i + 6, buffer + _offset + _tuple_size * i + 10);
@@ -174,4 +173,49 @@ PQDump::PQDump()
 	cout << PQputCopyEnd(connection, 0) << ' ';
 	res = PQexec(connection, "COMMIT;");
 	PQfinish(connection);
+	delete[] buffer;
+}
+void PQDump::PQDumpG()
+{
+	if (connection)
+		delete connection;
+	connection = PQconnectdb("user=postgres\
+		 password=0508\
+		 dbname=test\
+		 host=localhost\
+		 hostaddr=127.0.0.1\
+		 port=5088");
+
+	cout << PQstatus(connection) << ' ';
+	PQexec(connection, "Drop table g100;");
+	PQexec(connection, "create table g100(gid int);");
+
+	const char* sql = "copy g100 from STDIN WITH BINARY;";
+	PGresult* res = PQexec(connection, sql);
+	cout << PQstatus(connection) << '\n';
+	char* buffer = new char[1024];
+	const unsigned int zero = 0;
+	memcpy(buffer, "PGCOPY\n\377\r\n\0", 11);
+	memcpy(buffer + 11, (char*)& zero, 4);
+	memcpy(buffer + 15, (char*)& zero, 4);
+	const unsigned short n_fields = 0x0100;
+	const unsigned int _4 = 0x04000000;
+	const int _offset = 19;
+	const int _tuple_size = 10;//2 + 4 + (4)
+	random_device device{};
+	mt19937 re{ device() };
+	ZipfianDistribution<unsigned int> zipf(100, re, 2.5f);
+	for (int i = 0; i < 100; ++i) {
+		unsigned zval = zipf.nextVal();
+		memcpy(buffer + _offset + (_tuple_size * i), &n_fields, 2);
+		memcpy(buffer + _offset + (_tuple_size * i) + 2, &_4, 4);
+		memcpy(buffer + _offset + (_tuple_size * i) + 6, &zval, 4);
+		std::reverse(buffer + _offset + _tuple_size * i + 6, buffer + _offset + _tuple_size * i + 10);
+	}
+	cout << PQputCopyData(connection, buffer, _tuple_size * 100 + _offset) << ' ';
+	cout << PQputCopyEnd(connection, 0) << ' ';
+	res = PQexec(connection, "COMMIT;");
+	PQfinish(connection);
+	delete[] buffer;
+
 }
